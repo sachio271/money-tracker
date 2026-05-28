@@ -14,7 +14,7 @@ const NAV = [
 
 export default function BottomNav() {
   const pathname = usePathname();
-  if (pathname.startsWith("/login") || pathname.startsWith("/auth"))
+  if (pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/auth"))
     return null;
 
   const isActive = (href: string) =>

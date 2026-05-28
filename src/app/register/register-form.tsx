@@ -5,19 +5,28 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
-export default function LoginForm() {
+export default function RegisterForm() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
+    if (password !== confirm) {
+      setError('Passwords do not match')
+      return
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
     setLoading(true)
     setError(null)
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signUp({ email, password })
     if (error) {
       setError(error.message)
       setLoading(false)
@@ -43,9 +52,17 @@ export default function LoginForm() {
       />
       <input
         type="password"
-        placeholder="Password"
+        placeholder="Password (min. 6 characters)"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        required
+        className="w-full bg-white/10 border border-white/10 text-white placeholder-gray-500 rounded-2xl px-4 py-3.5 text-sm outline-none focus:border-white/30 transition-colors"
+      />
+      <input
+        type="password"
+        placeholder="Confirm password"
+        value={confirm}
+        onChange={(e) => setConfirm(e.target.value)}
         required
         className="w-full bg-white/10 border border-white/10 text-white placeholder-gray-500 rounded-2xl px-4 py-3.5 text-sm outline-none focus:border-white/30 transition-colors"
       />
@@ -54,12 +71,12 @@ export default function LoginForm() {
         disabled={loading}
         className="w-full bg-white text-gray-900 font-semibold rounded-2xl py-3.5 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50"
       >
-        {loading ? 'Signing in…' : 'Sign in'}
+        {loading ? 'Creating account…' : 'Create account'}
       </button>
       <p className="text-center text-sm text-gray-500 pt-1">
-        Don&apos;t have an account?{' '}
-        <Link href="/register" className="text-gray-300 hover:text-white transition-colors">
-          Register
+        Already have an account?{' '}
+        <Link href="/login" className="text-gray-300 hover:text-white transition-colors">
+          Sign in
         </Link>
       </p>
     </form>
