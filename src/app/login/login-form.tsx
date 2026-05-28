@@ -1,10 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export default function LoginForm() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [mode, setMode] = useState<'magic' | 'password'>('magic')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -14,17 +18,20 @@ export default function LoginForm() {
     setLoading(true)
     setError(null)
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${location.origin}/auth/callback` },
-    })
-    if (error) {
-      setError(error.message)
+
+    if (mode === 'magic') {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: `${location.origin}/auth/callback` },
+      })
+      if (error) { setError(error.message); setLoading(false); return }
+      setSent(true)
       setLoading(false)
-      return
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) { setError(error.message); setLoading(false); return }
+      router.push('/')
     }
-    setSent(true)
-    setLoading(false)
   }
 
   if (sent) {
@@ -46,6 +53,7 @@ export default function LoginForm() {
           {error}
         </div>
       )}
+
       <input
         type="email"
         placeholder="you@example.com"
@@ -54,12 +62,34 @@ export default function LoginForm() {
         required
         className="w-full bg-white/10 border border-white/10 text-white placeholder-gray-500 rounded-2xl px-4 py-3.5 text-sm outline-none focus:border-white/30 transition-colors"
       />
+
+      {mode === 'password' && (
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          className="w-full bg-white/10 border border-white/10 text-white placeholder-gray-500 rounded-2xl px-4 py-3.5 text-sm outline-none focus:border-white/30 transition-colors"
+        />
+      )}
+
       <button
         type="submit"
         disabled={loading}
         className="w-full bg-white text-gray-900 font-semibold rounded-2xl py-3.5 text-sm hover:bg-gray-100 transition-colors disabled:opacity-50"
       >
-        {loading ? 'Sending...' : 'Send magic link'}
+        {loading
+          ? 'Please wait…'
+          : mode === 'magic' ? 'Send magic link' : 'Sign in'}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => { setMode(mode === 'magic' ? 'password' : 'magic'); setError(null) }}
+        className="w-full text-gray-500 text-xs py-1 hover:text-gray-400 transition-colors"
+      >
+        {mode === 'magic' ? 'Sign in with password instead' : 'Sign in with magic link instead'}
       </button>
     </form>
   )
