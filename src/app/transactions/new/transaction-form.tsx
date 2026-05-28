@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createTransaction } from '@/lib/actions/transactions'
 import { Input } from '@/components/ui/input'
@@ -27,13 +27,21 @@ export default function TransactionForm({
   const router = useRouter()
   const [type, setType] = useState<'income' | 'expense' | 'transfer'>('expense')
   const [loading, setLoading] = useState(false)
+  const submitting = useRef(false)
   const today = new Date().toISOString().slice(0, 16)
   const style = typeStyle[type]
 
   async function handleSubmit(formData: FormData) {
+    if (submitting.current) return
+    submitting.current = true
     setLoading(true)
-    await createTransaction(formData)
-    router.push('/transactions')
+    try {
+      await createTransaction(formData)
+      router.push('/transactions')
+    } catch {
+      submitting.current = false
+      setLoading(false)
+    }
   }
 
   return (
