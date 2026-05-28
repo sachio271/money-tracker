@@ -17,6 +17,7 @@ interface Props {
   title: string;
   description: string;
   confirmLabel?: string;
+  variant?: "danger" | "save";
 }
 
 export default function ConfirmDialog({
@@ -27,7 +28,13 @@ export default function ConfirmDialog({
   title,
   description,
   confirmLabel = "Delete",
+  variant = "danger",
 }: Props) {
+  const confirmCls =
+    variant === "save"
+      ? "bg-gray-900 hover:bg-gray-700"
+      : "bg-rose-500 hover:bg-rose-600";
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && !loading && onClose()}>
       <DialogContent className="max-w-sm">
@@ -46,7 +53,7 @@ export default function ConfirmDialog({
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="flex-1 h-11 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            className={`flex-1 h-11 rounded-xl text-white text-sm font-semibold disabled:opacity-50 transition-colors flex items-center justify-center gap-2 ${confirmCls}`}
           >
             {loading && <Loader2 size={15} className="animate-spin" />}
             {confirmLabel}

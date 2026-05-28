@@ -27,16 +27,28 @@ export default function AccountsList({ accounts }: { accounts: Account[] }) {
   const [currency, setCurrency] = useState('IDR')
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
+
+  // Create confirmation
+  const [pendingCreateData, setPendingCreateData] = useState<FormData | null>(null)
+
+  // Delete confirmation
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  async function handleCreate(formData: FormData) {
-    if (savingRef.current) return
+  // Step 1: intercept → show confirm
+  function handleCreate(formData: FormData) {
+    formData.set('currency', currency)
+    setPendingCreateData(formData)
+  }
+
+  // Step 2: confirmed → save
+  async function handleConfirmCreate() {
+    if (!pendingCreateData || savingRef.current) return
     savingRef.current = true
     setSaving(true)
     try {
-      formData.set('currency', currency)
-      await createAccount(formData)
+      await createAccount(pendingCreateData)
+      setPendingCreateData(null)
       setOpen(false)
     } finally {
       savingRef.current = false
@@ -52,17 +64,32 @@ export default function AccountsList({ accounts }: { accounts: Account[] }) {
     setDeletingId(null)
   }
 
+  const createName = pendingCreateData?.get('name') as string | null
+  const createBalance = Number(pendingCreateData?.get('openingBalance') ?? 0)
   const pendingAccount = accounts.find(a => a.id === pendingDeleteId)
 
   return (
     <div className="space-y-3">
+      {/* Create confirmation */}
+      <ConfirmDialog
+        open={!!pendingCreateData}
+        onClose={() => setPendingCreateData(null)}
+        onConfirm={handleConfirmCreate}
+        loading={saving}
+        title="Create account?"
+        description={createName ? `"${createName}" (${currency}) with opening balance ${formatAmount(createBalance, currency)} will be added.` : ''}
+        confirmLabel="Create"
+        variant="save"
+      />
+
+      {/* Delete confirmation */}
       <ConfirmDialog
         open={!!pendingDeleteId}
         onClose={() => setPendingDeleteId(null)}
         onConfirm={handleDelete}
         loading={!!deletingId}
         title="Archive account?"
-        description={pendingAccount ? `Archive "${pendingAccount.name}"? This cannot be undone.` : 'This cannot be undone.'}
+        description={pendingAccount ? `Archive "${pendingAccount.name}"? This cannot be undone.` : ''}
         confirmLabel="Archive"
       />
 

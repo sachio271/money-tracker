@@ -20,18 +20,28 @@ export default function CategoriesList({ categories }: { categories: Category[] 
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const savingRef = useRef(false)
+
+  // Create confirmation
+  const [pendingCreateData, setPendingCreateData] = useState<FormData | null>(null)
+
+  // Delete confirmation
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const parents = categories.filter((c) => !c.parentId)
   const children = categories.filter((c) => c.parentId)
 
-  async function handleCreate(formData: FormData) {
-    if (savingRef.current) return
+  function handleCreate(formData: FormData) {
+    setPendingCreateData(formData)
+  }
+
+  async function handleConfirmCreate() {
+    if (!pendingCreateData || savingRef.current) return
     savingRef.current = true
     setSaving(true)
     try {
-      await createCategory(formData)
+      await createCategory(pendingCreateData)
+      setPendingCreateData(null)
       setOpen(false)
     } finally {
       savingRef.current = false
@@ -47,17 +57,37 @@ export default function CategoriesList({ categories }: { categories: Category[] 
     setDeletingId(null)
   }
 
+  const createName = pendingCreateData?.get('name') as string | null
+  const createParentId = pendingCreateData?.get('parentId') as string | null
+  const createParentName = createParentId ? parents.find(p => p.id === createParentId)?.name : null
   const pendingCat = categories.find(c => c.id === pendingDeleteId)
 
   return (
     <div className="space-y-3">
+      {/* Create confirmation */}
+      <ConfirmDialog
+        open={!!pendingCreateData}
+        onClose={() => setPendingCreateData(null)}
+        onConfirm={handleConfirmCreate}
+        loading={saving}
+        title="Create category?"
+        description={createName
+          ? createParentName
+            ? `"${createName}" will be added under "${createParentName}".`
+            : `"${createName}" will be added as a top-level category.`
+          : ''}
+        confirmLabel="Create"
+        variant="save"
+      />
+
+      {/* Delete confirmation */}
       <ConfirmDialog
         open={!!pendingDeleteId}
         onClose={() => setPendingDeleteId(null)}
         onConfirm={handleDelete}
         loading={!!deletingId}
         title="Archive category?"
-        description={pendingCat ? `Archive "${pendingCat.name}"? Subcategories will also be removed.` : 'This cannot be undone.'}
+        description={pendingCat ? `Archive "${pendingCat.name}"? Subcategories will also be removed.` : ''}
         confirmLabel="Archive"
       />
 

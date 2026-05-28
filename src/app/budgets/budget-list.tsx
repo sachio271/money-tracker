@@ -43,15 +43,25 @@ export default function BudgetList({
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+
+  // Create confirmation
+  const [pendingCreateData, setPendingCreateData] = useState<FormData | null>(null);
+
+  // Delete confirmation
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  async function handleCreate(formData: FormData) {
-    if (savingRef.current) return;
+  function handleCreate(formData: FormData) {
+    setPendingCreateData(formData);
+  }
+
+  async function handleConfirmCreate() {
+    if (!pendingCreateData || savingRef.current) return;
     savingRef.current = true;
     setSaving(true);
     try {
-      await createBudget(formData);
+      await createBudget(pendingCreateData);
+      setPendingCreateData(null);
       setOpen(false);
     } finally {
       savingRef.current = false;
@@ -67,17 +77,39 @@ export default function BudgetList({
     setDeletingId(null);
   }
 
+  const createCategoryId = pendingCreateData?.get('categoryId') as string | null;
+  const createCategoryName = createCategoryId
+    ? (categories.find(c => c.id === createCategoryId)?.name ?? 'Unknown')
+    : null;
+  const createAmount = Number(pendingCreateData?.get('amount') ?? 0);
   const pendingBudget = budgets.find(b => b.id === pendingDeleteId);
 
   return (
     <div className="space-y-3">
+      {/* Create confirmation */}
+      <ConfirmDialog
+        open={!!pendingCreateData}
+        onClose={() => setPendingCreateData(null)}
+        onConfirm={handleConfirmCreate}
+        loading={saving}
+        title="Set budget?"
+        description={createCategoryName
+          ? `Monthly limit of ${formatIDR(createAmount)} will be set for "${createCategoryName}".`
+          : ''}
+        confirmLabel="Save"
+        variant="save"
+      />
+
+      {/* Delete confirmation */}
       <ConfirmDialog
         open={!!pendingDeleteId}
         onClose={() => setPendingDeleteId(null)}
         onConfirm={handleDelete}
         loading={!!deletingId}
         title="Delete budget?"
-        description={pendingBudget ? `Delete budget for "${pendingBudget.categoryName ?? 'Uncategorized'}"? This cannot be undone.` : 'This cannot be undone.'}
+        description={pendingBudget
+          ? `Delete budget for "${pendingBudget.categoryName ?? 'Uncategorized'}"? This cannot be undone.`
+          : ''}
       />
 
       {budgets.length === 0 && (
@@ -89,10 +121,7 @@ export default function BudgetList({
       {budgets.map((b) => {
         const isOver = b.spent > b.amount;
         return (
-          <div
-            key={b.id}
-            className="bg-white rounded-2xl px-4 py-4 shadow-sm space-y-3"
-          >
+          <div key={b.id} className="bg-white rounded-2xl px-4 py-4 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center font-semibold text-gray-600 text-sm">
@@ -108,9 +137,7 @@ export default function BudgetList({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span
-                  className={`text-sm font-bold ${isOver ? "text-rose-500" : "text-gray-900"}`}
-                >
+                <span className={`text-sm font-bold ${isOver ? "text-rose-500" : "text-gray-900"}`}>
                   {b.percentage}%
                 </span>
                 <button
@@ -156,9 +183,7 @@ export default function BudgetList({
               >
                 <option value="">Select category</option>
                 {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
