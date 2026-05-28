@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createAccount, deleteAccount } from '@/lib/actions/accounts'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Plus, Archive } from 'lucide-react'
+import { Plus, Archive, Loader2 } from 'lucide-react'
+import ConfirmDialog from '@/components/confirm-dialog'
 
 type Account = {
   id: string
@@ -25,15 +25,47 @@ function formatAmount(amount: number, currency: string) {
 export default function AccountsList({ accounts }: { accounts: Account[] }) {
   const [open, setOpen] = useState(false)
   const [currency, setCurrency] = useState('IDR')
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function handleCreate(formData: FormData) {
-    formData.set('currency', currency)
-    await createAccount(formData)
-    setOpen(false)
+    if (savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
+    try {
+      formData.set('currency', currency)
+      await createAccount(formData)
+      setOpen(false)
+    } finally {
+      savingRef.current = false
+      setSaving(false)
+    }
   }
+
+  async function handleDelete() {
+    if (!pendingDeleteId) return
+    setDeletingId(pendingDeleteId)
+    setPendingDeleteId(null)
+    await deleteAccount(pendingDeleteId)
+    setDeletingId(null)
+  }
+
+  const pendingAccount = accounts.find(a => a.id === pendingDeleteId)
 
   return (
     <div className="space-y-3">
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={handleDelete}
+        loading={!!deletingId}
+        title="Archive account?"
+        description={pendingAccount ? `Archive "${pendingAccount.name}"? This cannot be undone.` : 'This cannot be undone.'}
+        confirmLabel="Archive"
+      />
+
       {accounts.length === 0 && (
         <div className="bg-white rounded-2xl p-8 text-center shadow-sm text-gray-400 text-sm">
           No accounts yet
@@ -54,16 +86,19 @@ export default function AccountsList({ accounts }: { accounts: Account[] }) {
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">{account.currency}</span>
             <button
-              onClick={() => deleteAccount(account.id)}
-              className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+              onClick={() => setPendingDeleteId(account.id)}
+              disabled={deletingId === account.id}
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-50"
             >
-              <Archive size={15} />
+              {deletingId === account.id
+                ? <Loader2 size={15} className="animate-spin text-rose-400" />
+                : <Archive size={15} />}
             </button>
           </div>
         </div>
       ))}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => !saving && setOpen(v)}>
         <DialogTrigger asChild>
           <button className="w-full bg-white rounded-2xl px-4 py-4 shadow-sm flex items-center gap-3 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors border-2 border-dashed border-gray-100">
             <Plus size={18} />
@@ -95,7 +130,14 @@ export default function AccountsList({ accounts }: { accounts: Account[] }) {
               <Label htmlFor="openingBalance">Opening Balance</Label>
               <Input id="openingBalance" name="openingBalance" type="number" defaultValue="0" />
             </div>
-            <Button type="submit" className="w-full">Create Account</Button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full h-11 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            >
+              {saving && <Loader2 size={15} className="animate-spin" />}
+              {saving ? 'Creating…' : 'Create Account'}
+            </button>
           </form>
         </DialogContent>
       </Dialog>

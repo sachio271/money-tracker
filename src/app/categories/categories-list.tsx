@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createCategory, deleteCategory } from '@/lib/actions/categories'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Plus, Archive, ChevronRight } from 'lucide-react'
+import { Plus, Archive, ChevronRight, Loader2 } from 'lucide-react'
+import ConfirmDialog from '@/components/confirm-dialog'
 
 type Category = {
   id: string
@@ -18,17 +18,49 @@ type Category = {
 
 export default function CategoriesList({ categories }: { categories: Category[] }) {
   const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const parents = categories.filter((c) => !c.parentId)
   const children = categories.filter((c) => c.parentId)
 
   async function handleCreate(formData: FormData) {
-    await createCategory(formData)
-    setOpen(false)
+    if (savingRef.current) return
+    savingRef.current = true
+    setSaving(true)
+    try {
+      await createCategory(formData)
+      setOpen(false)
+    } finally {
+      savingRef.current = false
+      setSaving(false)
+    }
   }
+
+  async function handleDelete() {
+    if (!pendingDeleteId) return
+    setDeletingId(pendingDeleteId)
+    setPendingDeleteId(null)
+    await deleteCategory(pendingDeleteId)
+    setDeletingId(null)
+  }
+
+  const pendingCat = categories.find(c => c.id === pendingDeleteId)
 
   return (
     <div className="space-y-3">
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={handleDelete}
+        loading={!!deletingId}
+        title="Archive category?"
+        description={pendingCat ? `Archive "${pendingCat.name}"? Subcategories will also be removed.` : 'This cannot be undone.'}
+        confirmLabel="Archive"
+      />
+
       {parents.length === 0 && (
         <div className="bg-white rounded-2xl p-8 text-center shadow-sm text-gray-400 text-sm">
           No categories yet
@@ -51,10 +83,13 @@ export default function CategoriesList({ categories }: { categories: Category[] 
                   <span className="text-xs text-gray-400">{subs.length} sub</span>
                 )}
                 <button
-                  onClick={() => deleteCategory(cat.id)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                  onClick={() => setPendingDeleteId(cat.id)}
+                  disabled={deletingId === cat.id}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-50"
                 >
-                  <Archive size={14} />
+                  {deletingId === cat.id
+                    ? <Loader2 size={14} className="animate-spin text-rose-400" />
+                    : <Archive size={14} />}
                 </button>
               </div>
             </div>
@@ -65,10 +100,13 @@ export default function CategoriesList({ categories }: { categories: Category[] 
                   <p className="text-sm text-gray-700">{sub.name}</p>
                 </div>
                 <button
-                  onClick={() => deleteCategory(sub.id)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                  onClick={() => setPendingDeleteId(sub.id)}
+                  disabled={deletingId === sub.id}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-50"
                 >
-                  <Archive size={14} />
+                  {deletingId === sub.id
+                    ? <Loader2 size={14} className="animate-spin text-rose-400" />
+                    : <Archive size={14} />}
                 </button>
               </div>
             ))}
@@ -76,7 +114,7 @@ export default function CategoriesList({ categories }: { categories: Category[] 
         )
       })}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => !saving && setOpen(v)}>
         <DialogTrigger asChild>
           <button className="w-full bg-white rounded-2xl px-4 py-4 shadow-sm flex items-center gap-3 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors border-2 border-dashed border-gray-100">
             <Plus size={18} />
@@ -101,7 +139,14 @@ export default function CategoriesList({ categories }: { categories: Category[] 
                 ))}
               </select>
             </div>
-            <Button type="submit" className="w-full">Create Category</Button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full h-11 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            >
+              {saving && <Loader2 size={15} className="animate-spin" />}
+              {saving ? 'Creating…' : 'Create Category'}
+            </button>
           </form>
         </DialogContent>
       </Dialog>

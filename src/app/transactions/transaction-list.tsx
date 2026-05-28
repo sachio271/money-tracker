@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { deleteTransaction } from '@/lib/actions/transactions'
-import { ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight, Trash2, Loader2 } from 'lucide-react'
+import ConfirmDialog from '@/components/confirm-dialog'
 
 type Transaction = {
   id: string
@@ -40,6 +42,8 @@ export default function TransactionsList({
   month: number
 }) {
   const router = useRouter()
+  const [pendingId, setPendingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   function navigate(m: number, y: number) {
     router.push(`/transactions?year=${y}&month=${m}`)
@@ -48,12 +52,32 @@ export default function TransactionsList({
   function prev() { if (month === 1) navigate(12, year - 1); else navigate(month - 1, year) }
   function next() { if (month === 12) navigate(1, year + 1); else navigate(month + 1, year) }
 
+  async function handleDelete() {
+    if (!pendingId) return
+    setDeletingId(pendingId)
+    setPendingId(null)
+    await deleteTransaction(pendingId)
+    setDeletingId(null)
+    router.refresh()
+  }
+
   const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const groups = groupByDate(transactions)
 
+  const pendingTxn = transactions.find(t => t.id === pendingId)
+
   return (
     <div className="space-y-4">
+      <ConfirmDialog
+        open={!!pendingId}
+        onClose={() => setPendingId(null)}
+        onConfirm={handleDelete}
+        loading={!!deletingId}
+        title="Delete transaction?"
+        description={pendingTxn ? `Delete "${pendingTxn.note ?? formatIDR(pendingTxn.amount)}"? This cannot be undone.` : 'This cannot be undone.'}
+      />
+
       {/* Month navigator */}
       <div className="bg-white rounded-2xl px-4 py-3 flex items-center justify-between shadow-sm">
         <button onClick={prev} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors">
@@ -115,10 +139,13 @@ export default function TransactionsList({
                       {t.type === 'income' ? '+' : '-'}{formatIDR(t.amount)}
                     </p>
                     <button
-                      onClick={() => deleteTransaction(t.id)}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                      onClick={() => setPendingId(t.id)}
+                      disabled={deletingId === t.id}
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-50"
                     >
-                      <Trash2 size={14} />
+                      {deletingId === t.id
+                        ? <Loader2 size={14} className="animate-spin text-rose-400" />
+                        : <Trash2 size={14} />}
                     </button>
                   </div>
                 </div>

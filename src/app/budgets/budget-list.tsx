@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createBudget, deleteBudget } from "@/lib/actions/budgets";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +11,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Loader2 } from "lucide-react";
+import ConfirmDialog from "@/components/confirm-dialog";
 
 type Budget = {
   id: string;
@@ -41,14 +41,45 @@ export default function BudgetList({
   categories: Category[];
 }) {
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleCreate(formData: FormData) {
-    await createBudget(formData);
-    setOpen(false);
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      await createBudget(formData);
+      setOpen(false);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   }
+
+  async function handleDelete() {
+    if (!pendingDeleteId) return;
+    setDeletingId(pendingDeleteId);
+    setPendingDeleteId(null);
+    await deleteBudget(pendingDeleteId);
+    setDeletingId(null);
+  }
+
+  const pendingBudget = budgets.find(b => b.id === pendingDeleteId);
 
   return (
     <div className="space-y-3">
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={handleDelete}
+        loading={!!deletingId}
+        title="Delete budget?"
+        description={pendingBudget ? `Delete budget for "${pendingBudget.categoryName ?? 'Uncategorized'}"? This cannot be undone.` : 'This cannot be undone.'}
+      />
+
       {budgets.length === 0 && (
         <div className="bg-white rounded-2xl p-8 text-center shadow-sm text-gray-400 text-sm">
           No budgets set yet
@@ -83,26 +114,28 @@ export default function BudgetList({
                   {b.percentage}%
                 </span>
                 <button
-                  onClick={() => deleteBudget(b.id)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                  onClick={() => setPendingDeleteId(b.id)}
+                  disabled={deletingId === b.id}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors disabled:opacity-50"
                 >
-                  <Trash2 size={14} />
+                  {deletingId === b.id
+                    ? <Loader2 size={14} className="animate-spin text-rose-400" />
+                    : <Trash2 size={14} />}
                 </button>
               </div>
             </div>
 
-            {/* Progress bar */}
             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all ${isOver ? "bg-rose-500" : b.percentage > 80 ? "bg-amber-400" : "bg-emerald-500"}`}
-                style={{ width: `${b.percentage}%` }}
+                style={{ width: `${Math.min(b.percentage, 100)}%` }}
               />
             </div>
           </div>
         );
       })}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(v) => !saving && setOpen(v)}>
         <DialogTrigger asChild>
           <button className="w-full bg-white rounded-2xl px-4 py-4 shadow-sm flex items-center gap-3 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors border-2 border-dashed border-gray-100">
             <Plus size={18} />
@@ -140,9 +173,14 @@ export default function BudgetList({
                 required
               />
             </div>
-            <Button type="submit" className="w-full">
-              Save Budget
-            </Button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full h-11 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            >
+              {saving && <Loader2 size={15} className="animate-spin" />}
+              {saving ? 'Saving…' : 'Save Budget'}
+            </button>
           </form>
         </DialogContent>
       </Dialog>
