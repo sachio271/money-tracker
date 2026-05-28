@@ -3,8 +3,7 @@ import { redirect } from "next/navigation";
 import { getAccounts } from "@/lib/actions/accounts";
 import { getTransactions } from "@/lib/actions/transactions";
 import Link from "next/link";
-import { ArrowUpRight, ArrowDownRight, ChevronRight } from "lucide-react";
-import LogoutButton from "@/components/logout-button";
+import { ArrowUpRight, ArrowDownRight, ChevronRight, Settings } from "lucide-react";
 
 function formatIDR(amount: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -47,7 +46,12 @@ export default async function HomePage() {
           <p className="text-sm text-gray-400">{monthName}</p>
           <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
         </div>
-        <LogoutButton />
+        <Link
+          href="/settings"
+          className="w-9 h-9 flex items-center justify-center rounded-xl bg-white shadow-sm hover:bg-gray-50 text-gray-600"
+        >
+          <Settings size={18} />
+        </Link>
       </div>
 
       {/* Net balance hero */}
