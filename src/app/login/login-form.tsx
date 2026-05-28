@@ -7,15 +7,22 @@ export default function LoginForm() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
     setLoading(true)
+    setError(null)
     const supabase = createClient()
-    await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${location.origin}/auth/callback` },
     })
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+      return
+    }
     setSent(true)
     setLoading(false)
   }
@@ -34,6 +41,11 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      {error && (
+        <div className="bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm rounded-2xl px-4 py-3">
+          {error}
+        </div>
+      )}
       <input
         type="email"
         placeholder="you@example.com"
