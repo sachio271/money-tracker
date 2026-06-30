@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getBudgets } from "@/lib/actions/budgets";
 import { getCategories } from "@/lib/actions/categories";
+import { getCurrentCycleLabel } from "@/lib/cycle";
 import BudgetList from "./budget-list";
 
 export default async function BudgetsPage({
@@ -16,9 +17,9 @@ export default async function BudgetsPage({
   if (!user) redirect("/login");
 
   const params = await searchParams;
-  const now = new Date();
-  const year = Number(params.year ?? now.getFullYear());
-  const month = Number(params.month ?? now.getMonth() + 1);
+  const current = await getCurrentCycleLabel(user.id);
+  const year = Number(params.year ?? current.year);
+  const month = Number(params.month ?? current.month);
 
   const [budgetList, categoriesList] = await Promise.all([
     getBudgets(year, month),

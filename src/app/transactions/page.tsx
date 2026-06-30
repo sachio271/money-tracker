@@ -1,5 +1,6 @@
 import { getTransactions } from "@/lib/actions/transactions";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentCycleLabel } from "@/lib/cycle";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -17,9 +18,9 @@ export default async function TransactionsPage({
   if (!user) redirect("/login");
 
   const params = await searchParams;
-  const now = new Date();
-  const year = Number(params.year ?? now.getFullYear());
-  const month = Number(params.month ?? now.getMonth() + 1);
+  const current = await getCurrentCycleLabel(user.id);
+  const year = Number(params.year ?? current.year);
+  const month = Number(params.month ?? current.month);
 
   const txns = await getTransactions(year, month);
 

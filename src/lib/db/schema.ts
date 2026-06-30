@@ -69,6 +69,25 @@ export const budgets = pgTable("budgets", {
     .defaultNow(),
 });
 
+export const userSettings = pgTable("user_settings", {
+  userId: uuid("user_id").primaryKey(),
+  defaultPayday: integer("default_payday").notNull().default(25),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const paydayOverrides = pgTable("payday_overrides", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull(),
+  year: integer("year").notNull(),
+  month: integer("month").notNull(),
+  payday: integer("payday").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const recurringRules = pgTable("recurring_rules", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull(),

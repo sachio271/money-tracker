@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getMonthlyReport } from "@/lib/actions/reports";
+import { getCurrentCycleLabel } from "@/lib/cycle";
 import ExpenseChart from "./expense-chart";
 
 export default async function ReportsPage({
@@ -15,9 +16,9 @@ export default async function ReportsPage({
   if (!user) redirect("/login");
 
   const params = await searchParams;
-  const now = new Date();
-  const year = Number(params.year ?? now.getFullYear());
-  const month = Number(params.month ?? now.getMonth() + 1);
+  const current = await getCurrentCycleLabel(user.id);
+  const year = Number(params.year ?? current.year);
+  const month = Number(params.month ?? current.month);
 
   const { expenses, income } = await getMonthlyReport(year, month);
 

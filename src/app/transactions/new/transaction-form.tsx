@@ -6,6 +6,15 @@ import { createTransaction } from '@/lib/actions/transactions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ChevronLeft, Loader2 } from 'lucide-react'
 import ConfirmDialog from '@/components/confirm-dialog'
 
@@ -33,12 +42,17 @@ export default function TransactionForm({
   const [type, setType] = useState<'income' | 'expense' | 'transfer'>('expense')
   const [loading, setLoading] = useState(false)
   const [pendingData, setPendingData] = useState<FormData | null>(null)
+  const [categoryId, setCategoryId] = useState('uncategorized')
   const submitting = useRef(false)
   const style = typeStyle[type]
   const today = new Date().toISOString().slice(0, 16)
 
+  const parentCategories = categories.filter((c) => !c.parentId)
+  const childCategories = categories.filter((c) => c.parentId)
+
   // Step 1: intercept submit → show confirm dialog
   function handleSubmit(formData: FormData) {
+    formData.set('categoryId', categoryId === 'uncategorized' ? '' : categoryId)
     setPendingData(formData)
   }
 
@@ -169,12 +183,29 @@ export default function TransactionForm({
         {type !== 'transfer' && (
           <div className="bg-white rounded-2xl px-4 py-3.5 shadow-sm">
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Category</p>
-            <select name="categoryId" className="w-full text-gray-900 font-medium bg-transparent border-0 outline-none text-sm">
-              <option value="">Uncategorized</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger className="w-full border-0 shadow-none p-0 h-auto text-sm font-medium text-gray-900 bg-transparent focus-visible:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                {parentCategories.map((p) => {
+                  const subs = childCategories.filter((c) => c.parentId === p.id)
+                  if (subs.length === 0) {
+                    return <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  }
+                  return (
+                    <SelectGroup key={p.id}>
+                      <SelectLabel>{p.name}</SelectLabel>
+                      <SelectItem value={p.id}>{p.name} (general)</SelectItem>
+                      {subs.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )
+                })}
+              </SelectContent>
+            </Select>
           </div>
         )}
 

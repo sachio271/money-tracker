@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getAccounts } from "@/lib/actions/accounts";
 import { getTransactions } from "@/lib/actions/transactions";
+import { getCurrentCycleLabel } from "@/lib/cycle";
 import Link from "next/link";
 import { ArrowUpRight, ArrowDownRight, ChevronRight, Settings } from "lucide-react";
 
@@ -20,10 +21,10 @@ export default async function HomePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const now = new Date();
+  const { year, month } = await getCurrentCycleLabel(user.id);
   const [accountsList, txns] = await Promise.all([
     getAccounts(),
-    getTransactions(now.getFullYear(), now.getMonth() + 1),
+    getTransactions(year, month),
   ]);
 
   const income = txns
@@ -34,7 +35,7 @@ export default async function HomePage() {
     .reduce((s, t) => s + t.amount, 0);
   const net = income - expense;
   const recent = txns.slice(0, 5);
-  const monthName = now.toLocaleString("id-ID", {
+  const monthName = new Date(year, month - 1, 1).toLocaleString("id-ID", {
     month: "long",
     year: "numeric",
   });

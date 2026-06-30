@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Wallet, Tag, ChevronRight } from "lucide-react";
 import LogoutButton from "@/components/logout-button";
+import PaydaySettings from "./payday-settings";
+import { getPaydaySettings } from "@/lib/actions/settings";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -10,6 +12,8 @@ export default async function SettingsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const { defaultPayday, overrides } = await getPaydaySettings();
 
   return (
     <main className="max-w-lg mx-auto px-4 pt-6 space-y-5">
@@ -51,6 +55,13 @@ export default async function SettingsPage() {
             <ChevronRight size={16} className="text-gray-300" />
           </Link>
         </div>
+      </section>
+
+      <section className="space-y-2">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1">
+          Financial Cycle
+        </p>
+        <PaydaySettings defaultPayday={defaultPayday} overrides={overrides} />
       </section>
 
       <section className="space-y-2">

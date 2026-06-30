@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { budgets, transactions, categories } from "@/lib/db/schema";
 import { createClient } from "@/lib/supabase/server";
+import { getCycleRange } from "@/lib/cycle";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -23,8 +24,7 @@ async function getUserId() {
 
 export async function getBudgets(year: number, month: number) {
   const userId = await getUserId();
-  const from = new Date(year, month - 1, 1);
-  const to = new Date(year, month, 0, 23, 59, 59);
+  const { from, to } = await getCycleRange(userId, year, month);
 
   const budgetList = await db
     .select({
